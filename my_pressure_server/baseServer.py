@@ -11,7 +11,7 @@ import logging
 import socket
 import sys
 import serial
-from socket import SocketS
+
 
 class SocketStatus:
     READY = 0
