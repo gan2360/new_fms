@@ -17,7 +17,8 @@ import numpy as np
 ser = serial.Serial()
 def port_open_recv():#对串口的参数进行配置
     ser.port='com5'
-    ser.baudrate=460800
+    # ser.baudrate=460800
+    ser.baudrate = 460800
     ser.bytesize=8
     ser.stopbits=1
     ser.parity="N"#奇偶校验位
@@ -42,6 +43,7 @@ def send(send_data):
         print("发送成功",send_data)
     else:
         print("发送失败！")
+
 def recv(size):
     if(ser.isOpen()):
         data = ser.read(size)
@@ -72,7 +74,6 @@ def parse_press_data(data):
 def my_parse_press_data(data):
     # bin_str = binascii.unhexlify(data)
     bin_str = bytes.fromhex(data)
-    print(bin_str)
     matrix = []
     for row in range(64):
         row_data = []
@@ -84,6 +85,36 @@ def my_parse_press_data(data):
         matrix.append(row_data)
     print(matrix)
     return matrix
+
+
+def parse_press_fulll_rt(data):
+    bin_str = bytes.fromhex(data)
+    matrix = np.zeros((64,32))
+    for row in range(64):
+        for col in range(32):
+            byte_data = bin_str[col*64 + row:col*64 + row+1].hex()
+            value = struct.unpack('<B',bytes.fromhex(byte_data))[0]
+            matrix[row][col] = value
+    return matrix
+
+
+def parse_press_60_32_rt(data):
+    bin_str = bytes.fromhex(data)
+    press_matrix = np.zeros((60, 32))
+    for row in range(60):
+        for col in range(32):
+            hex_data = bin_str[col*64 + row+4]
+            value = hex_data
+            press_matrix[row][col] = value
+    return press_matrix
+
+def test_method(data):
+    print("1:------"+data)
+    bin_str = bytes.fromhex(data)
+    print(bin_str)
+    for i in bin_str:
+        print(i)
+
 
 if __name__ == '__main__':
     port_open_recv()
@@ -99,32 +130,12 @@ if __name__ == '__main__':
             print(f'1:{pre_head},2:{tail_head}')
         #起到一个延时的效果，这里如果不加上一个while True，程序执行一次就自动跳出了
     other = recv(4)
-    data = recv(2048)
+    data = recv(2048)   #数据帧总长度为2056 = 2048 + 2 + 2 + 1 + 1 + 2
     cal_sum = recv(2)
-    # recv(2048 + 2 + 1 + 2 + 1 + 2)
-    press_matrix = my_parse_press_data(data)
-    np_matrix = np.array(press_matrix)
-    print(np_matrix.shape)
-    # recv(2056)  # 2056
-    # print(time.time())
-    # recv(2056)
-    # print(time.time())
-    # recv(2056)
-    # print(time.time())
-    # recv(2056)
+    press_matrix_1 = parse_press_fulll_rt(data)
+    press_matrix_2 = parse_press_60_32_rt(data)
+    print(press_matrix_1,'\n', press_matrix_2)
 
-
-
-
-
-
-
-    # data = b''
-    # while True:
-    #     data += ser.read(ser.in_waiting)
-    #     if len(data) >= 1024:
-    #         print(time.time())
-    #         data = b''
 
 
 
