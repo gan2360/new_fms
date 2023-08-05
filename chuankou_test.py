@@ -12,7 +12,7 @@ import time
 import serial#导入串口通信库
 from time import sleep
 import numpy as np
-
+from scipy import interpolate
 
 ser = serial.Serial()
 def port_open_recv():#对串口的参数进行配置
@@ -108,12 +108,65 @@ def parse_press_60_32_rt(data):
             press_matrix[row][col] = value
     return press_matrix
 
-def test_method(data):
-    print("1:------"+data)
+def method_test(data):
+    print("1:",len(data))
     bin_str = bytes.fromhex(data)
-    print(bin_str)
-    for i in bin_str:
-        print(i)
+    print("2:",bin_str)
+    print(len(bin_str))
+    print("3:",bin_str[0])
+    print("3.5:", "{:02x}".format(bin_str[0]))
+    print("4:",bin_str[0:1])
+    print("5:",bin_str[0:1].hex())
+    print("6:",bytes.fromhex(bin_str[0:1].hex()))
+    print(struct.unpack('<B',bin_str[0:1]))
+    [value] = struct.unpack('<B', bin_str[0:1])
+    print("7:", value)
+
+
+# def interpolation(matrix):
+#     target_matrix = np.zeros((60,60))
+#     x = np.arange(0, 31)
+#     y = np.arange(0, 63)
+#     f = interpolate.interp2d(x, y, matrix, kind='linear')
+#     new_x = np.linspace(0, 31, 60)
+#     new_y = np.linspace(0, 63, 60)
+#     interpolated_matrix = f(new_x, new_y)
+#     target_matrix[2:62, 2:62] = interpolated_matrix
+#     return target_matrix
+
+def interpolation(pressure_matrix):
+    # 原始矩阵的形状
+    original_shape = pressure_matrix.shape
+
+    # 创建新矩阵的形状
+    target_shape = (60, 60)
+
+    # 创建插值函数
+    x = np.linspace(0, original_shape[1] - 1, original_shape[1])
+    y = np.linspace(0, original_shape[0] - 1, original_shape[0])
+    f = interpolate.interp2d(x, y, pressure_matrix, kind='linear')
+
+    # 在目标形状上进行插值
+    new_x = np.linspace(0, original_shape[1] - 1, target_shape[1])
+    new_y = np.linspace(0, original_shape[0] - 1, target_shape[0])
+    interpolated_matrix = f(new_x, new_y)
+
+    return interpolated_matrix
+
+
+def normalize_matrix(matrix):
+    # 计算矩阵的最大值和最小值
+    min_value = np.min(matrix)
+    max_value = np.max(matrix)
+
+    # 归一化矩阵
+    normalized_matrix = (matrix - min_value) / (max_value - min_value)
+
+    # 限制小数位数不超过5位
+    rounded_matrix = np.round(normalized_matrix, decimals=5)
+
+    return rounded_matrix
+
 
 
 if __name__ == '__main__':
@@ -133,8 +186,14 @@ if __name__ == '__main__':
     data = recv(2048)   #数据帧总长度为2056 = 2048 + 2 + 2 + 1 + 1 + 2
     cal_sum = recv(2)
     press_matrix_1 = parse_press_fulll_rt(data)
-    press_matrix_2 = parse_press_60_32_rt(data)
-    print(press_matrix_1,'\n', press_matrix_2)
+    print(press_matrix_1)
+    target_matrix = interpolation(press_matrix_1)
+    print(target_matrix)
+    normalized_matrix = normalize_matrix(target_matrix)
+    print(normalized_matrix)
+    # press_matrix_2 = parse_press_60_32_rt(data)
+    # print(press_matrix_1,'\n\n', press_matrix_2)
+
 
 
 
