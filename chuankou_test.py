@@ -10,13 +10,14 @@ import binascii
 import struct
 import time
 import serial#导入串口通信库
-from time import sleep
+from serial.tools import list_ports
 import numpy as np
 from scipy import interpolate
+from MySerial.matrix_tools import rearrange_pressure_1
 
 ser = serial.Serial()
 def port_open_recv():#对串口的参数进行配置
-    ser.port='com5'
+    ser.port='com10'
     # ser.baudrate=460800
     ser.baudrate = 460800
     ser.bytesize=8
@@ -108,6 +109,7 @@ def parse_press_60_32_rt(data):
             press_matrix[row][col] = value
     return press_matrix
 
+
 def method_test(data):
     print("1:",len(data))
     bin_str = bytes.fromhex(data)
@@ -122,17 +124,6 @@ def method_test(data):
     [value] = struct.unpack('<B', bin_str[0:1])
     print("7:", value)
 
-
-# def interpolation(matrix):
-#     target_matrix = np.zeros((60,60))
-#     x = np.arange(0, 31)
-#     y = np.arange(0, 63)
-#     f = interpolate.interp2d(x, y, matrix, kind='linear')
-#     new_x = np.linspace(0, 31, 60)
-#     new_y = np.linspace(0, 63, 60)
-#     interpolated_matrix = f(new_x, new_y)
-#     target_matrix[2:62, 2:62] = interpolated_matrix
-#     return target_matrix
 
 def interpolation(pressure_matrix):
     # 原始矩阵的形状
@@ -158,14 +149,34 @@ def normalize_matrix(matrix):
     # 计算矩阵的最大值和最小值
     min_value = np.min(matrix)
     max_value = np.max(matrix)
-
+    if min_value == max_value:
+        normalized_matrix = np.zeros_like(matrix)
     # 归一化矩阵
-    normalized_matrix = (matrix - min_value) / (max_value - min_value)
-
+    else:
+        normalized_matrix = (matrix - min_value) / (max_value - min_value)
     # 限制小数位数不超过5位
     rounded_matrix = np.round(normalized_matrix, decimals=5)
 
     return rounded_matrix
+
+def test_multiple_port():
+    from serial.tools import list_ports
+    port_lists = list(list_ports.comports())
+    port_lists = [port for port in port_lists if 'USB-SERIAL' in port.description]
+    for item in port_lists:
+        print(item.description)
+        print(item.name)
+    print(port_lists)
+
+
+def test_ports_config():
+    port_lists = list(list_ports.comports())
+    ports_name = [port.name for port in port_lists if 'USB-SERIAL' in port.description]
+    if len(ports_name) <= 0:
+        raise Exception('无相关串口信息')
+    print(ports_name)
+
+
 
 
 
@@ -180,19 +191,16 @@ if __name__ == '__main__':
             tail_head =recv(1)
             if tail_head == '5a':
                 is_ready =True
-            print(f'1:{pre_head},2:{tail_head}')
-        #起到一个延时的效果，这里如果不加上一个while True，程序执行一次就自动跳出了
     other = recv(4)
     data = recv(2048)   #数据帧总长度为2056 = 2048 + 2 + 2 + 1 + 1 + 2
     cal_sum = recv(2)
     press_matrix_1 = parse_press_fulll_rt(data)
+    press_matrix_1 = rearrange_pressure_1(press_matrix_1)
     print(press_matrix_1)
-    target_matrix = interpolation(press_matrix_1)
-    print(target_matrix)
-    normalized_matrix = normalize_matrix(target_matrix)
-    print(normalized_matrix)
-    # press_matrix_2 = parse_press_60_32_rt(data)
-    # print(press_matrix_1,'\n\n', press_matrix_2)
+    # target_matrix = interpolation(press_matrix_1)
+    # print(target_matrix)
+    # normalized_matrix = normalize_matrix(target_matrix)
+    # print(normalized_matrix)
 
 
 
